@@ -7,26 +7,26 @@ function init_first_level_arc{T<:AbstractFloat}(
   )
   n = nv(flow_graph)           # size of the network
 
-	first_level = Model(solver = solver)
+  first_level = Model(solver = solver)
 
-	# x : first level binary variables
-	@variable(first_level, 0 ≤ x[i = 1:n, j = 1:n] ≤ capacity_matrix[i, j])
+  # x : first level binary variables
+  @variable(first_level, 0 ≤ x[i = 1:n, j = 1:n] ≤ capacity_matrix[i, j])
   # z : objective function
-	@variable(first_level, z)
-	@objective(first_level, Max, z)
+  @variable(first_level, z)
+  @objective(first_level, Max, z)
 
-	# flow conservation constraints
-	for v in vertices(flow_graph)
-		if (v ≠ source && v ≠ target)
+  # flow conservation constraints
+  for v in vertices(flow_graph)
+    if (v ≠ source && v ≠ target)
       @constraint(first_level, sum{x[i, j], i = 1:n, j = 1:n;
         capacity_matrix[i ,j] > 0} - sum{x[j, i], i = 1:n, j = 1:n;
         capacity_matrix[j, i] > 0} == 0)
-	   	end
-	end
+    end
+  end
 
   # objective function upper bound
-	# @constraint(first_level, z ≤ prevfloat(typemax(T)))
-	@constraint(first_level, z ≤ 10000000)
+  # @constraint(first_level, z ≤ prevfloat(typemax(T)))
+  @constraint(first_level, z ≤ 10000000)
 
   return first_level, x, z
 end
@@ -76,7 +76,7 @@ function init_second_level_arc{T<:AbstractFloat}(
     elseif j == target
       # cut constraint for edge (i,j) when j is the destination
       if i != source
-         @constraint(second_level, δ[i, j] - σ[i] ≥ 0 )
+        @constraint(second_level, δ[i, j] - σ[i] ≥ 0 )
       end
     else
       # cut constraint for edge (i,j) in the remaining cases
@@ -101,7 +101,7 @@ function bilevel_adaptive_arc{T<:AbstractFloat}(
   atol::T,                                      # absolute tolerance
   time_limit::Float64                           # time limit (seconds)
   )
-	start_time = time()               # time stamp (seconds)
+  start_time = time()               # time stamp (seconds)
   n = nv(flow_graph)                # size of the network
   lower_bound = 0.
   upper_bound = 0.
@@ -121,15 +121,15 @@ function bilevel_adaptive_arc{T<:AbstractFloat}(
                                                      attacks, solver, x)
 
     # Solve second level and update lower_bound
-		solve(second_level)
-		lower_bound = getobjectivevalue(second_level)
+    solve(second_level)
+    lower_bound = getobjectivevalue(second_level)
 
     # If the bounds are tight, exit the loop
     (isapprox(upper_bound, lower_bound, rtol = rtol, atol = atol)) && break
 
     # Otherwise add the new cut to the first level
-		δ_value = getvalue(δ)
-		ν_value = getvalue(ν)
+    δ_value = getvalue(δ)
+    ν_value = getvalue(ν)
     @constraint(first_level, z ≤ sum{
       δ_value[i, j] * x[i, j] - ν_value[i, j] * x[i, j], i = 1:n, j = 1:n;
       capacity_matrix[i, j] > 0})
